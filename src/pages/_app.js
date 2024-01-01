@@ -7,9 +7,7 @@ import { KBarProvider, KBarPortal, KBarPositioner, KBarAnimator, KBarSearch, KBa
 
 import { createRxDatabase, addRxPlugin } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
-import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
-addRxPlugin(RxDBDevModePlugin);
 addRxPlugin(RxDBUpdatePlugin);
 
 // import { createClient } from '@supabase/supabase-js';
@@ -160,7 +158,7 @@ export default function App({ Component, pageProps }) {
       }
     }).exec();
 
-    if (!page || page.get('master')) return; // Master page should not be deleted
+    if (page.get('master')) return; // Master page should not be deleted
 
     await page.remove();
 

@@ -35,7 +35,7 @@ export default function Page() {
     shortcut: [],
     keywords: "delete",
     perform: () => deletePage(router.query.uuid),
-  }], [db]);
+  }], [db, router.query.uuid]);
 
   if (!page) return null;
 
