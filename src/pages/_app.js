@@ -10,14 +10,14 @@ import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 addRxPlugin(RxDBUpdatePlugin);
 
-// import { createClient } from '@supabase/supabase-js';
-// import { SupabaseReplication } from 'rxdb-supabase';
+import { createClient } from '@supabase/supabase-js';
+import { SupabaseReplication } from 'rxdb-supabase';
 
 import Layout from '../components/layout';
 import RxDBContext from '../contexts/RxDBContext';
 import PagesContext from '../contexts/PagesContext';
 
-const initDb = async () => {
+const initRxDB = async () => {
   const pageSchema = {
     title: 'page schema',
     version: 0,
@@ -47,7 +47,8 @@ const initDb = async () => {
       master: {
         type: 'boolean'
       }
-    }
+    },
+    required: ['uuid']
   };
 
   const db = await createRxDatabase({
@@ -90,7 +91,7 @@ export default function App({ Component, pageProps }) {
   const [db, setDb] = useState(null);
   const [user, setUser] = useState(null);
   const [pages, setPages] = useState(null);
-  //const [replication, setReplication] = useState(null);
+  const [replication, setReplication] = useState(null);
   const router = useRouter();
 
   const createPage = async (isMaster = false) => {
@@ -175,39 +176,43 @@ export default function App({ Component, pageProps }) {
     }
   }
 
+  // On app initialisation
   useEffect(() => {
     if (localStorage.getItem('user')) {
+      // Set the existing user
       setUser(localStorage.getItem('user'));
     } else {
+      // Set a new user
       const user = uuidv4();
       localStorage.setItem('user', user);
       setUser(user);
     }
   }, []);
 
+  // On user change
   useEffect(() => {
     if (!user) return;
 
+    // Wait for indexedDB to be available before initialising rxdb
     if (typeof window !== "undefined" && window.indexedDB) {
-      // Initialise the local db
-      initDb()
-        .then(dbObj => setDb(dbObj));
+      // Initialise rxdb
+      initRxDB()
+        .then(async rxdb => {
+          // Initialise replication
+          /*const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_KEY);
+          const rep = new SupabaseReplication({
+            supabaseClient: supabase,
+            collection: rxdb.pages,
+            replicationIdentifier: `${process.env.NEXT_PUBLIC_SUPABASE_URL}:${user}`
+          });
+          setReplication(rep);*/
+          setDb(rxdb);
+        });
     }
   }, [user]);
 
   useEffect(() => {
     if (!db) return;
-    /*
-    // Setup for replication
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_KEY);
-    const rep = new SupabaseReplication({
-      supabaseClient: supabase,
-      collection: db.pages,
-      replicationIdentifier: `${process.env.NEXT_PUBLIC_SUPABASE_URL}:${user}`,
-      pull: {},
-      push: {},
-    });
-    setReplication(rep);*/
 
     // Check local db for existing pages
     db.pages.find({
@@ -222,9 +227,13 @@ export default function App({ Component, pageProps }) {
     }).exec()
       .then(pages => {
         if (pages.length) {
-          // Show the earliest page
           setPages(pages);
-          router.replace(pages[0].get('uuid'));
+
+          // Show the default master page
+          for (let page of pages) {
+            if (page.get('master') === true) router.replace(page.get('uuid'));
+            break;
+          }
         } else {
           // No pages, create master page
           createPage(true)

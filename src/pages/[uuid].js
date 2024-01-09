@@ -22,6 +22,7 @@ export default function Page() {
     }
   }, [pages, router.query.uuid]);
 
+  // Register k-bar actions
   useRegisterActions([{
     id: "create",
     name: "Create New Page",
